@@ -99,3 +99,62 @@
 - Official hackathon judging rubric and exact submission mechanism are still unconfirmed (carried from Session 0's Research Brief)
 
 **Style history:** N/A — no UI-touching design work done this session (Section 8 process not yet triggered; the current pages are placeholder scaffold, not a design pass)
+
+---
+
+## Session 2: Buyer Payment Skill
+**Date:** 2026-09-05
+**Goal:** x402 buyer-side payment execution — 402-retry loop, EIP-712 signing, hard spend limits, decision logging.
+
+**Files added/changed:**
+- `packages/types/src/index.ts` — added x402 payment types (`X402PaymentRequirements`, `X402PaymentRequiredResponse`, `Eip3009Authorization`, `X402PaymentPayload`, `SpendLimitConfig`, `DecisionLogEntry`, `PurchaseResult`). First theme-specific types, appropriately introduced now rather than in Session 1.
+- `apps/api/src/lib/spend-limit.ts` — `SpendLimitTracker`: hard per-request and per-session USD caps, checked before any signing. Throws on startup if limits are unset or non-positive — no silent zero-limit default.
+- `apps/api/src/lib/wallet.ts` — loads the agent's own buyer wallet (viem, BNB testnet only). Refuses to load unless `AGENT_OS_MODE=testnet`.
+- `apps/api/src/lib/x402-client.ts` — parses `402` responses, selects a payment requirement by network, converts atomic amounts to USD, builds and signs the EIP-3009 `TransferWithAuthorization` typed data, encodes/decodes the `X-PAYMENT` header.
+- `apps/api/src/lib/decision-log.ts` — persists every purchase attempt (approved or denied) to Supabase.
+- `apps/api/src/lib/payment-skill.ts` — orchestrates the full flow: fetch → detect 402 → check spend limit (hard stop if denied, wallet never touched) → sign → retry with payment header → record spend → log decision.
+- `apps/api/src/routes/purchase.ts` — `POST /purchase { resourceUrl, reason }`, `GET /decisions`, `GET /spend-limit`. Registered in `apps/api/src/index.ts`.
+- `supabase/schema.sql` (new) — `decision_log` table definition, RLS enabled, no policy yet (server-only access via service role key).
+- `apps/api/.env.example` — added `AGENT_WALLET_PRIVATE_KEY`, `SPEND_LIMIT_MAX_PER_REQUEST_USD`, `SPEND_LIMIT_MAX_PER_SESSION_USD`, `X402_PREFERRED_NETWORK`, `X402_ASSET_DECIMALS`.
+- `apps/api/package.json` — added `viem@^2.21.19`.
+
+**What this session deliberately did NOT build:**
+- No mock seller endpoint exists yet — `purchaseResource` has nothing real to hit a 402 against until Session 3 builds one. That's the next session's job, not pulled forward into this one.
+- No dashboard/UI for the decision log — `GET /decisions` exists as a plain API endpoint for Session 3 to consume, not visualized yet.
+- No seller-side (`/verify`, `/settle`) code anywhere — out of scope per the Session 0 feasibility check (gated B402 partner access).
+
+**Verification performed:**
+- **Could not run** `pnpm install`, `tsc`, or the actual TypeScript files — no network access in this sandbox, so `fastify`/`viem`/`@supabase/supabase-js` are not installed. This is the same limitation noted in Session 1; still unresolved, first thing to do on your machine.
+- **Did run**, in plain Node with zero external dependencies, a standalone reimplementation of the pure logic (spend-limit boundary conditions, atomic-to-USD conversion, `X-PAYMENT` header encode/decode round-trip) — all 12 assertions passed. This does *not* verify the viem signing code, Fastify wiring, or Supabase calls; it only catches arithmetic/encoding mistakes in logic that has no external dependency.
+- Cross-checked every import in `apps/api/src` against the actual file tree and `package.json` dependencies by hand — no import references a file or package that doesn't exist/isn't declared.
+
+**Dependencies installed:** still none (see Session 1). `viem@^2.21.19` is newly declared, also unverified.
+
+**Supabase schema state:** `supabase/schema.sql` now defines `decision_log`, but it has **not been run** against any live project — no Supabase project is connected. `decision-log.ts` will fail its inserts/selects until this is applied.
+
+**Env vars required (new this session):** `AGENT_WALLET_PRIVATE_KEY`, `SPEND_LIMIT_MAX_PER_REQUEST_USD`, `SPEND_LIMIT_MAX_PER_SESSION_USD`, `X402_PREFERRED_NETWORK`, `X402_ASSET_DECIMALS` — none have real values yet.
+
+**Agent OS mode:** testnet (hard-enforced in code — `loadAgentWallet()` throws if `AGENT_OS_MODE !== "testnet"`). No mainnet path exists in this codebase.
+
+**Sub-account scope & limits:** No Binance sub-account created — this session's wallet is a plain EOA (BNB testnet), not a Binance account. Spend limits are enforced in `SpendLimitTracker`, not on any exchange sub-account, since we never reach Binance's own account APIs in the buyer-only x402 flow.
+
+**Decision log (this session):** No purchases attempted — there's no live resource server to test against yet (Session 3). The logging path itself (`recordDecision`) is implemented but unexercised.
+
+**API endpoints live:**
+- `GET /health` — from Session 1
+- `POST /purchase` — runs the buyer flow against a given `resourceUrl`
+- `GET /decisions` — lists past decisions from Supabase
+- `GET /spend-limit` — current config + session spend so far
+
+**Known stubs/mocks/TODOs:**
+- `AGENT_WALLET_PRIVATE_KEY` needs a real testnet key generated and funded via a BNB Smart Chain testnet faucet before anything can actually sign.
+- The EIP-712 domain (`name`/`version` for signing) is read from the resource server's `extra` field on each payment requirement — this is correct per the x402 pattern, but means Session 3's mock seller must actually populate `extra.name`/`extra.version`, or signing will throw by design (rather than guess a value).
+- `atomicAmountToUsd` assumes a USD-pegged asset (documented in the function) — fine for a USDC-style mock, would need a real price feed for anything else.
+- In-memory session spend tracking resets if the server restarts — flagged as a known limitation, not silently assumed to persist.
+
+**Assumptions carried into next session:**
+- Session 3 will build a mock seller that returns a spec-correct `402` response (with `accepts[]`, including `extra.name`/`extra.version`) and accepts the resulting `X-PAYMENT` header — clearly labeled as simulated throughout (README, UI, demo video), since this is not real B402 settlement.
+- `X402_PREFERRED_NETWORK=bsc-testnet` is a placeholder string controlled entirely by us (buyer and mock seller both being ours) — it doesn't need to match Binance's real production network identifier since no real facilitator is involved.
+- Still open from Session 0/1: official judging rubric, exact submission mechanism, api deploy target.
+
+**Style history:** N/A — no UI-touching work this session.
