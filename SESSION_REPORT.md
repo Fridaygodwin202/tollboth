@@ -158,3 +158,51 @@
 - Still open from Session 0/1: official judging rubric, exact submission mechanism, api deploy target.
 
 **Style history:** N/A — no UI-touching work this session.
+
+---
+
+## Session 3: Mock Seller & Decision Log
+**Date:** 2026-09-05
+**Goal:** A clearly-labeled simulated x402 resource server, plus a live dashboard to actually exercise and observe the buyer flow.
+
+**Files added/changed:**
+- `apps/api/src/lib/mock-facilitator.ts` — verifies a buyer's EIP-712 signature for real (via `viem`'s `recoverTypedDataAddress`, a pure cryptographic check requiring no RPC call for a plain EOA), and checks amount/payee/validity window. Explicitly does NOT call Binance's B402 `/verify` or `/settle` — labeled as a mock facilitator throughout.
+- `apps/api/src/routes/mock-seller.ts` — `GET /mock-seller/premium-data`: returns a spec-shaped `402` with `accepts[]` (including `extra.name`/`extra.version` needed for signing) when unpaid, verifies the `X-PAYMENT` header and returns mock data with an explicit `mock`/`disclaimer` field when valid.
+- `apps/api/src/lib/x402-client.ts` — added `usdToAtomicAmount` (inverse of the existing `atomicAmountToUsd`), used by the mock seller to price its resource.
+- `apps/api/src/index.ts` — registered `mockSellerRoutes`.
+- `apps/api/.env.example` — added `MOCK_SELLER_PRICE_USD`, `MOCK_SELLER_PAYOUT_ADDRESS`, `X402_MOCK_ASSET_ADDRESS`. The latter two throw at request time if unset — no invented placeholder addresses, since a wrong domain silently breaks every signature check.
+- `apps/web/app/dashboard/page.tsx` (new) — spend meter (progress bar against the session cap), a "trigger a purchase" control that calls `POST /purchase` against the mock seller with an editable reason, and a history table reading `GET /decisions`. A red-bordered banner states plainly that this is a mock seller with no real settlement.
+- `apps/web/app/page.tsx` — added a link to `/dashboard`.
+
+**What this session deliberately did NOT build:**
+- No demo video or polished styling — the dashboard is functional, not designed (no UI-touching design session per Section 8 has run yet; still using the plain unstyled `@tollbooth/ui` `Button`).
+- No changes to the spend-limit or payment-skill logic from Session 2 — this session only added the seller side and the UI to observe it.
+
+**Verification performed:**
+- Still no `pnpm install` in this sandbox (no network) — `viem`, `fastify`, `@supabase/supabase-js`, `next` remain uninstalled and the actual TypeScript has not been executed.
+- Extended the standalone pure-logic verification script (`usdToAtomicAmount`, and its round-trip with `atomicAmountToUsd`) — all checks pass. Caught and fixed a real mistake in the process: an earlier version of this script appended new assertions after an existing `process.exit()` call, which silently discarded them; the script was rewritten as a single clean file rather than trusting the truncated first run.
+- The actual cryptographic verification path (`recoverTypedDataAddress`, `signTypedData`) is **not exercised** by anything in this sandbox — it depends on `viem` being installed. This is real, spec-correct code by inspection, not by test run; flagging that distinction explicitly rather than implying it's been proven correct.
+- Cross-checked every import across `apps/api/src` and `apps/web/app` + `apps/web/lib` against the actual file tree — all resolve to real files or already-declared dependencies.
+
+**Supabase schema state:** unchanged from Session 2 — `supabase/schema.sql` still not applied to any live project.
+
+**Env vars required (new this session):** `MOCK_SELLER_PRICE_USD`, `MOCK_SELLER_PAYOUT_ADDRESS`, `X402_MOCK_ASSET_ADDRESS` — none have real values yet.
+
+**Agent OS mode:** testnet, unchanged.
+
+**Decision log (this session):** Still none recorded — no live server has actually run this code yet. First real end-to-end test (buyer flow hitting the mock seller, signature verified, decision logged) is the first thing to do once `pnpm install` + env vars + Supabase are in place.
+
+**API endpoints live:**
+- `GET /health`, `POST /purchase`, `GET /decisions`, `GET /spend-limit` — from Sessions 1–2
+- `GET /mock-seller/premium-data` — new mock resource server
+
+**Known stubs/mocks/TODOs:**
+- `MOCK_SELLER_PAYOUT_ADDRESS` and `X402_MOCK_ASSET_ADDRESS` need real (but not fund-bearing) testnet address values before the mock seller will even start responding — it throws rather than guessing.
+- The dashboard is functional but unstyled — a UI-touching session (per ruleset Section 8) would be the next place to invest time if there's room before the deadline, but is not required for the flow to work.
+- End-to-end run (install deps, fund the agent wallet from a BNB testnet faucet, fill in all `.env` values, run `pnpm dev`, click "Buy premium data" on the dashboard) has not happened yet in any environment — this is the single highest-value next step to actually prove the build works, and should happen before investing further in polish.
+
+**Assumptions carried into next session:**
+- All Session 0–2 open items still open (judging rubric, submission mechanism, api deploy target).
+- Given the deadline, Session 4 (Polish & Submission) should probably start with actually running the thing end-to-end rather than jumping straight to README/video — a demo video of a flow that's never actually executed would risk recording a bug live.
+
+**Style history:** N/A — dashboard is plain/unstyled scaffold; no design session has run.

@@ -52,6 +52,12 @@ export function atomicAmountToUsd(
   return Number(atomic) / divisor;
 }
 
+/** Inverse of atomicAmountToUsd — used by the mock seller to price a resource. */
+export function usdToAtomicAmount(amountUsd: number, assetDecimals: number): string {
+  const atomic = Math.round(amountUsd * 10 ** assetDecimals);
+  return String(atomic);
+}
+
 function randomHex32(): `0x${string}` {
   return `0x${randomBytes(32).toString("hex")}`;
 }
