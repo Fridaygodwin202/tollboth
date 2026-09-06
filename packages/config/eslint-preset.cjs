@@ -1,0 +1,13 @@
+/** Shared ESLint base config, extended by each app/package. */
+module.exports = {
+  root: true,
+  extends: ["eslint:recommended"],
+  parserOptions: {
+    ecmaVersion: 2022,
+    sourceType: "module"
+  },
+  env: {
+    node: true,
+    es2022: true
+  }
+};
