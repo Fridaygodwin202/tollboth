@@ -45,9 +45,6 @@ importers:
 
   apps/web:
     dependencies:
-      '@supabase/supabase-js':
-        specifier: ^2.45.4
-        version: 2.115.0
       '@tollbooth/types':
         specifier: workspace:*
         version: link:../../packages/types
