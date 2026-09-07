@@ -6,44 +6,69 @@ every purchase logged and explained.
 
 Built for the **Binance Agent OS Mini Hackathon**, Track A.
 
-See `RESEARCH_BRIEF.md` and `BUILD_ROADMAP.md` at the project root (from
-Session 0) for the full research, scope, and session plan.
+See `RESEARCH_BRIEF.md` and `BUILD_ROADMAP.md` at the project root for the
+full research, scope, and session-by-session build plan. `SESSION_REPORT.md`
+has a detailed log of what was built and verified in each session.
 
-## Important scope note
+## What's real vs. simulated
 
-This project implements the x402 **buyer** role only. The Binance B402 seller
-role (accepting payments via `/verify` and `/settle`) requires a gated partner
-developer account that we don't have. Every "seller" this agent pays in the
-demo is a **mock endpoint we built ourselves** — clearly labeled as simulated
-in the UI, this README, and the demo video. No real B402 settlement occurs.
+- **Real:** EIP-3009/EIP-712 payment authorization signing (buyer side) and
+  cryptographic signature verification (seller side) — both implemented per
+  the x402 v2 spec, using `viem`.
+- **Simulated:** settlement. Accepting real Binance x402 (B402) payments
+  requires a gated partner developer account (business details, RSA key,
+  IP whitelist) that we don't have and couldn't realistically obtain inside
+  the hackathon window. Every "seller" this agent pays is a mock endpoint we
+  built ourselves (`apps/api/src/routes/mock-seller.ts`) — it verifies the
+  buyer's signature for real but never calls Binance's actual `/verify` or
+  `/settle`, and no funds actually move. This is labeled everywhere it
+  matters: the API responses, the dashboard UI, and the demo video.
 
 ## Stack
 
-- `apps/web` — Next.js (App Router), Supabase auth
-- `apps/api` — Fastify server
+- `apps/web` — Next.js (App Router), Supabase auth, decision-log dashboard
+- `apps/api` — Fastify server: buyer payment skill, spend-limit enforcement,
+  mock seller
 - `packages/types` — shared TypeScript types
 - `packages/config` — shared ESLint/TypeScript config
 - `packages/ui` — shared UI primitives
 
 ## Getting started
 
-This scaffold was generated without network access, so dependencies have
-**not been installed or build-verified yet**. First real steps on your
-machine:
+This project was scaffolded without network access, so nothing has been
+installed or run yet. First real steps:
 
 ```bash
 pnpm install
 cp apps/web/.env.example apps/web/.env.local
 cp apps/api/.env.example apps/api/.env
-# fill in the Supabase values in both files
+# fill in every value in both files — see SESSION_REPORT.md's "env vars
+# required" sections for what each one is, and RESEARCH_BRIEF.md /
+# SESSION_REPORT.md for a full first-run checklist
 pnpm dev
 ```
 
-`apps/web` runs on `:3000`, `apps/api` on `:4000` (see `apps/api/.env.example`).
+`apps/web` runs on `:3000`, `apps/api` on `:4000`.
+
+Once running: visit `/dashboard`, click "Buy premium data via x402", and
+watch a real signed payment authorization get verified against the mock
+seller, logged, and reflected in the spend meter.
 
 ## Environment split
 
-Every session runs against **testnet** credentials by default. Mainnet is
-only touched in an explicitly-scoped go-live session, per the build ruleset.
-See `apps/api/.env.example` for the `BINANCE_TESTNET_*` / `BINANCE_MAINNET_*`
-naming convention.
+Every session runs against **testnet** credentials by default. The agent's
+wallet (`AGENT_WALLET_PRIVATE_KEY`) refuses to load unless
+`AGENT_OS_MODE=testnet` is set. There is no mainnet path implemented in this
+codebase at all.
+
+## Hackathon submission notes
+
+- Track A: build an AI agent with Binance Agent OS.
+- Entry is via following @Binance, reposting, and replying with the
+  submission (demo video + GitHub repo link) plus completing a survey.
+- Not available to participants in the US, UK, EEA, Hong Kong, Singapore, or
+  other Binance-restricted jurisdictions — confirm eligibility before
+  submitting.
+- Double-check the exact current process on Binance's own hackathon post
+  before submitting; the above is accurate as of research done during this
+  build but hasn't been re-verified at submission time.

@@ -206,3 +206,95 @@
 - Given the deadline, Session 4 (Polish & Submission) should probably start with actually running the thing end-to-end rather than jumping straight to README/video — a demo video of a flow that's never actually executed would risk recording a bug live.
 
 **Style history:** N/A — dashboard is plain/unstyled scaffold; no design session has run.
+
+---
+
+## Session 4: Polish & Submission
+**Date:** 2026-09-05
+**Goal:** Get the project into a submittable state — README, demo script, licensing, and a hard reminder to actually run the thing before recording anything.
+
+**Files added/changed:**
+- `README.md` — rewritten: elevator pitch, explicit "what's real vs. simulated" section, stack summary, first-run instructions, and hackathon submission notes.
+- `DEMO_SCRIPT.md` (new) — a ~75–90s shot-by-shot script for the required demo video, written so recording doesn't require improvising on camera. Explicitly instructs recording only after the first-run checklist has been completed once already.
+- `LICENSE` (new) — MIT, a reasonable default for a hackathon repo; swap it if a different license is wanted.
+
+**What this session deliberately did NOT do:**
+- Did not actually run the app — no network access in this sandbox means `pnpm install` still hasn't happened anywhere. This is the single most important thing to do before recording the demo video, and it's called out explicitly in both the README and `DEMO_SCRIPT.md`.
+- Did not record the demo video or submit — those are manual steps for you, informed by the checklist below.
+
+**First real run — do this before recording anything:**
+1. Unzip the latest session zip, `pnpm install` at the root.
+2. Create a Supabase project, run `supabase/schema.sql`, fill in both `.env` files.
+3. Generate a fresh testnet-only wallet key, fund it from a BNB Smart Chain testnet faucet, set `AGENT_WALLET_PRIVATE_KEY`.
+4. Fill in `MOCK_SELLER_PAYOUT_ADDRESS`, `X402_MOCK_ASSET_ADDRESS`, and confirm spend limits are above the mock seller's price.
+5. `pnpm dev`, visit `localhost:3000`, confirm the health check passes.
+6. Visit `/dashboard`, click "Buy premium data via x402" — confirm an approved decision with a real signature appears, and a row lands in Supabase.
+7. Temporarily lower the per-request limit below the mock seller's price, restart, click buy again — confirm it's denied with no signing attempted.
+8. Only then, record the demo video per `DEMO_SCRIPT.md`.
+
+**Submission checklist (per research, verify against Binance's own post before submitting):**
+- [ ] Confirm current eligibility (not in US/UK/EEA/Hong Kong/Singapore/other restricted jurisdictions)
+- [ ] Push the repo to GitHub (public, includes `LICENSE`, working `README.md`)
+- [ ] Record and upload the demo video
+- [ ] Follow @Binance, repost the hackathon post, reply with the submission (video + repo link)
+- [ ] Complete the survey
+- [ ] Submit before **September 8, 2026, 23:59 UTC**
+- [ ] Re-confirm the judging rubric on Binance's official page — still unconfirmed in public sources as of this build
+
+**Still open (carried across all sessions, unresolved):**
+- Official granular judging rubric.
+- API deploy target (Railway/Render/Fly) — never provisioned; fine for a demo run via `pnpm dev` locally, but would matter if the demo video needs a hosted link rather than localhost.
+- Everything in this codebase remains unexecuted until the checklist above is completed on your machine.
+
+**Style history:** N/A — no UI-touching design pass ran across any session. If there's time after the checklist above, a design session (ruleset Section 8) on the dashboard would be the next reasonable investment, but is not required for the flow to work or be demoed.
+
+---
+
+## Post-roadmap audit pass
+**Date:** 2026-09-05
+**Why:** The 4-session roadmap is complete, but nothing has actually executed anywhere (no network in this build environment). Rather than inventing new scope, this pass re-read every file line-by-line looking for bugs that only a real compile/run would otherwise catch — cheap to do now, expensive to hit mid-demo.
+
+**Real bugs found and fixed:**
+1. **`apps/web/app/(auth)/sign-in/page.tsx` and `sign-up/page.tsx`** used `React.FormEvent` as a type without ever importing `React` as a namespace (only `{ useState }` was imported). This would have been a `tsc` compile error on first build. Fixed by importing `type { FormEvent } from "react"` and using `FormEvent` directly.
+2. **`apps/api/src/lib/x402-client.ts`**'s `signAuthorization` called `await walletClient.getChainId()`, which sends a real RPC request to a BNB Smart Chain testnet node — an unnecessary network dependency for something that should be (and was described in `wallet.ts`'s own comments as) offline signing, and a latent risk of the buyer and mock-seller's `mock-facilitator.ts` disagreeing on chain ID if that RPC call ever misbehaved. Fixed by importing `bscTestnet` directly and using `bscTestnet.id`, matching `mock-facilitator.ts` exactly.
+3. **`apps/api/src/lib/payment-skill.ts`**'s "resource didn't actually require payment" edge case set `decision: "approved"` alongside a `denialReason` explaining why — confusing field reuse (a denial reason on an approval). Cleaned up to not overload that field. This path is currently unreachable in the demo (the mock seller always returns 402 without a payment header), so it's a latent-bug fix, not something that would have shown up in normal use.
+
+**Not found, but worth stating plainly:** this pass did not (and could not, without installing dependencies) catch type errors in the `viem`/`fastify`/`@supabase/supabase-js` API surfaces themselves — e.g., whether `WalletClient`'s generic defaults structurally accept the concrete client built in `wallet.ts` will only be confirmed by an actual `tsc` run. That remains the first real test once `pnpm install` happens on your machine.
+
+---
+
+## Session 5: Visual Design Pass
+**Date:** 2026-09-05
+**Goal:** A real, distinctive visual identity for the dashboard and surrounding pages — the ruleset's Section 8 UI-touching process, deferred from every prior session since none of them touched design.
+
+**Design plan (per frontend-design skill):**
+- **Palette:** asphalt `#14171a` (background), ticket-paper `#f3f0e8` (surfaces), toll-amber `#f2a93b` (the one bold accent), highway-green `#2b6e58` (approved), violation-red `#c1443c` (denied), ink `#1c1a16` (text on paper). Colors borrowed from real traffic-signal vocabulary, tied to the subject matter, not decorative.
+- **Type:** "Big Shoulders Display" for headlines (condensed, road-sign character), "IBM Plex Sans" for body copy, "IBM Plex Mono" reserved specifically for ledger amounts and signatures — functional use of monospace for real financial/hex data, not a decorative label font.
+- **Signature element:** the spend meter is rendered as a gate-arm barrier (`.gate-arm-track` / `.gate-arm-fill`) that fills with a hazard-stripe pattern as budget is consumed, and switches to a red stripe pattern at 100% — one bold, memorable, functional element, everything else kept quiet.
+- **Layout:** ticket-stub ledger entries (`.ticket-stub`) with a dashed "perforation" border between entries — a literal ticket detail, not decorative.
+
+**Reviewed against generic AI-design tells and revised before building:**
+- Original nav used middle-dot separators (`Sign up · Sign in · Dashboard`) — exactly the templated pattern the skill calls out. Replaced with a proper `<nav>` in a new site header.
+- Avoided the "near-black + single neon accent" crypto cliché by using three purposeful accent colors (amber/green/red, traffic-signal logic) rather than one decorative accent on near-black.
+- Avoided all-caps section labels — headers are sentence case throughout ("Gate status", "Past tickets").
+- No arrow-suffixed buttons, no rounded-card-with-soft-shadow kit, no ALL-CAPS eyebrows.
+
+**Files added/changed:**
+- `apps/web/app/globals.css` — full design token system (CSS variables) and component classes (`.gate-arm-*`, `.ticket-*`, `.site-header*`, `.mock-notice`).
+- `packages/ui/src/index.tsx` — `Button` now actually styled (`primary`/`quiet` variants using the design tokens), instead of the bare unstyled placeholder from Session 1.
+- `apps/web/app/layout.tsx` — added a real site header with proper `<nav>` (no middle-dot separators).
+- `apps/web/app/page.tsx` — rewritten hero copy grounded in the actual product (dead "Session 1 scaffold" placeholder text removed), CTA using the styled `Button`.
+- `apps/web/app/dashboard/page.tsx` — rebuilt around the gate-arm meter and ticket-stub ledger; MOCK SELLER disclaimer restyled as a printed ledger notice (`.mock-notice`) rather than a browser-style alert box — kept clearly legible and prominent, just fitting the visual system instead of clashing with it.
+- `apps/web/app/(auth)/sign-in/page.tsx`, `sign-up/page.tsx` — swapped plain `<button>` elements for the shared styled `Button`.
+- `apps/web/app/health-check.tsx` — minor: re-check button now uses the `quiet` variant so it doesn't visually compete with primary actions.
+
+**Real bugs caught during this session (before they'd have hit a real build):**
+- Nearly repeated the exact `React.*` namespace mistake from the audit pass — wrote `React.CSSProperties` in the new `Button` component without `React` imported. Caught it immediately and fixed by importing `type { CSSProperties } from "react"`, matching the same fix pattern used for `FormEvent` earlier.
+- Re-ran the full import/dependency self-check across `apps/web` after all changes — everything still resolves to a real file or an already-declared dependency. Also grepped for middle-dot separators and ALL-CAPS JSX text to confirm the design-cliché fixes actually landed, not just in intent.
+
+**What this session deliberately did NOT do:**
+- Did not touch any `apps/api` logic — pure UI/CSS/copy changes only.
+- Did not add a component library or CSS framework — plain CSS variables and hand-written classes, consistent with the existing minimal-dependency approach.
+- Still has not been run in a real browser — the font `@import` and CSS will only be visually confirmed once `pnpm dev` actually runs, per the still-open first-run checklist from Session 4.
+
+**Style history (for any future UI-touching session to read before making changes):** Toll-plaza / turnpike ledger visual system. Palette: asphalt/paper/amber/highway-green/violation-red as defined above. Fonts: Big Shoulders Display (headlines), IBM Plex Sans (body), IBM Plex Mono (ledger amounts and signatures only — not general labels). Signature element: gate-arm meter. Ledger entries are ticket stubs with dashed perforation. Sentence-case headers throughout; no all-caps, no middle-dot joins, no arrow-suffixed buttons. Any future design work should stay inside this system rather than introducing a second visual language.

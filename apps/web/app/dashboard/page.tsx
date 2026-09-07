@@ -5,7 +5,7 @@ import { Button } from "@tollbooth/ui";
 import type { DecisionLogEntry, SpendLimitConfig, PurchaseResult } from "@tollbooth/types";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
-const DEFAULT_REASON = "Demo: checking a premium market signal mid-analysis.";
+const DEFAULT_REASON = "Checking a premium market signal mid-analysis.";
 
 interface SpendLimitState {
   config: SpendLimitConfig;
@@ -31,7 +31,7 @@ export default function DashboardPage() {
       setSpendLimit(await spendRes.json());
     } catch (err) {
       setLoadError(
-        `Could not reach apps/api at ${API_URL}. Is it running? (${
+        `Can't reach apps/api at ${API_URL}. Is it running? (${
           err instanceof Error ? err.message : String(err)
         })`
       );
@@ -81,49 +81,51 @@ export default function DashboardPage() {
 
   return (
     <main>
-      <h1>Decision log</h1>
-      <p role="alert" style={{ border: "1px solid #c00", padding: "0.75rem" }}>
-        <strong>MOCK SELLER</strong> — the resource this page buys from is a
-        simulated endpoint we built ourselves. Signatures are verified for
-        real; no real B402 settlement occurs and no real funds move.
+      <h1>The ledger</h1>
+
+      <p className="mock-notice">
+        This ledger pays a mock seller we built ourselves — not a real
+        Binance-verified merchant. Every signature below is checked for
+        real; no settlement or funds movement actually occurs.
       </p>
 
       {loadError && <p role="alert">{loadError}</p>}
 
       {spendLimit && (
         <section>
-          <h2>Session budget</h2>
-          <p>
-            ${spendLimit.sessionSpentUsd.toFixed(2)} spent of $
-            {spendLimit.config.maxPerSessionUsd.toFixed(2)} session limit
-            (${spendLimit.config.maxPerRequestUsd.toFixed(2)} max per request)
-          </p>
-          <div style={{ background: "#eee", height: 8, borderRadius: 4 }}>
+          <h2>Gate status</h2>
+          <div
+            className="gate-arm-track"
+            role="progressbar"
+            aria-valuenow={spendLimit.sessionSpentUsd}
+            aria-valuemin={0}
+            aria-valuemax={spendLimit.config.maxPerSessionUsd}
+          >
             <div
-              style={{
-                width: `${pct}%`,
-                background: pct >= 100 ? "#c00" : "#0a7",
-                height: "100%",
-                borderRadius: 4
-              }}
+              className={`gate-arm-fill${pct >= 100 ? " gate-arm-full" : ""}`}
+              style={{ width: `${pct}%` }}
             />
           </div>
+          <p className="gate-arm-label">
+            ${spendLimit.sessionSpentUsd.toFixed(2)} of $
+            {spendLimit.config.maxPerSessionUsd.toFixed(2)} spent this session
+            (${spendLimit.config.maxPerRequestUsd.toFixed(2)} max per request)
+          </p>
         </section>
       )}
 
       <section>
-        <h2>Trigger a purchase (demo)</h2>
+        <h2>Request passage</h2>
         <label>
           Reason the agent gives for buying
           <input
             type="text"
             value={reason}
             onChange={(e) => setReason(e.target.value)}
-            style={{ width: "100%" }}
           />
         </label>
         <Button onClick={triggerPurchase} disabled={busy}>
-          {busy ? "Purchasing…" : "Buy premium data via x402"}
+          {busy ? "Paying the toll…" : "Pay toll via x402"}
         </Button>
         {lastResult && (
           <p>
@@ -134,29 +136,24 @@ export default function DashboardPage() {
       </section>
 
       <section>
-        <h2>History ({decisions.length})</h2>
-        <table>
-          <thead>
-            <tr>
-              <th>When</th>
-              <th>Decision</th>
-              <th>Amount</th>
-              <th>Reason</th>
-              <th>Detail</th>
-            </tr>
-          </thead>
-          <tbody>
-            {decisions.map((d) => (
-              <tr key={d.id}>
-                <td>{new Date(d.createdAt).toLocaleString()}</td>
-                <td>{d.decision}</td>
-                <td>${d.amountUsd.toFixed(4)}</td>
-                <td>{d.reason}</td>
-                <td>{d.denialReason ?? d.txSignature?.slice(0, 12) ?? ""}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <h2>Past tickets ({decisions.length})</h2>
+        {decisions.length === 0 && (
+          <p>No tickets yet. Pay a toll above to see the first one land here.</p>
+        )}
+        <div className="ledger">
+          {decisions.map((d) => (
+            <div className="ticket-stub" key={d.id}>
+              <span className={`ticket-status ${d.decision}`}>{d.decision}</span>
+              <span className="ticket-amount">${d.amountUsd.toFixed(4)}</span>
+              <span className="ticket-reason">{d.reason}</span>
+              <span className="ticket-meta">
+                {new Date(d.createdAt).toLocaleString()}
+                {d.denialReason ? ` — ${d.denialReason}` : ""}
+                {d.txSignature ? ` — sig ${d.txSignature.slice(0, 14)}…` : ""}
+              </span>
+            </div>
+          ))}
+        </div>
       </section>
     </main>
   );

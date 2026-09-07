@@ -31,7 +31,9 @@ export async function purchaseResource(
   const initialResponse = await fetch(resourceUrl);
 
   if (initialResponse.status !== 402) {
-    // Not a paid resource (or already accessible) — nothing to buy, nothing to log.
+    // Not a paid resource (or already accessible) — nothing to buy, nothing to log
+    // to the persistent decision log (this is a plain "no payment needed" case,
+    // not a decision at all, so it's returned directly rather than recorded).
     return {
       decision: {
         id: "n/a",
@@ -39,11 +41,11 @@ export async function purchaseResource(
         resource: resourceUrl,
         reason,
         amountUsd: 0,
-        decision: "approved",
-        denialReason: "Resource did not require payment (status was not 402)."
+        decision: "approved"
       },
       responseStatus: initialResponse.status,
-      responseBody: await safeReadBody(initialResponse)
+      responseBody: await safeReadBody(initialResponse),
+      error: undefined
     };
   }
 

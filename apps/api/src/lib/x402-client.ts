@@ -1,5 +1,6 @@
 import { randomBytes } from "node:crypto";
 import type { WalletClient, Account } from "viem";
+import { bscTestnet } from "viem/chains";
 import type {
   X402PaymentRequiredResponse,
   X402PaymentRequirements,
@@ -104,7 +105,7 @@ export async function signAuthorization(
     );
   }
 
-  const chainId = await walletClient.getChainId();
+  const chainId = bscTestnet.id;
 
   return walletClient.signTypedData({
     account,
