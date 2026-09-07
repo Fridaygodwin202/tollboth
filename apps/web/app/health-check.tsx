@@ -45,7 +45,9 @@ export function HealthCheck() {
         </p>
       )}
       {error && <p role="alert">{error}</p>}
-      <Button onClick={checkHealth}>Re-check</Button>
+      <Button variant="quiet" onClick={checkHealth}>
+        Re-check
+      </Button>
     </section>
   );
 }
