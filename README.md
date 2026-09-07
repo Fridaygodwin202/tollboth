@@ -42,17 +42,21 @@ installed or run yet. First real steps:
 pnpm install
 cp apps/web/.env.example apps/web/.env.local
 cp apps/api/.env.example apps/api/.env
-# fill in every value in both files — see SESSION_REPORT.md's "env vars
-# required" sections for what each one is, and RESEARCH_BRIEF.md /
-# SESSION_REPORT.md for a full first-run checklist
+# fill in every value in apps/api/.env — apps/web only needs
+# NEXT_PUBLIC_API_URL, which already defaults to localhost:4000
 pnpm dev
 ```
 
 `apps/web` runs on `:3000`, `apps/api` on `:4000`.
 
-Once running: visit `/dashboard`, click "Buy premium data via x402", and
-watch a real signed payment authorization get verified against the mock
-seller, logged, and reflected in the spend meter.
+Once running: visit `/dashboard` directly — no sign-up required, the ledger
+is open to anyone. Click "Buy premium data via x402" and watch a real
+signed payment authorization get verified against the mock seller, logged,
+and reflected in the spend meter. A "Connect wallet" button in the header
+is available as an optional identity affordance for visitors (via a
+browser wallet extension) — it's unrelated to the agent's own payment
+wallet (a separate server-side key in `apps/api`) and nothing in the app
+is gated behind it.
 
 ## Environment split
 
@@ -60,6 +64,13 @@ Every session runs against **testnet** credentials by default. The agent's
 wallet (`AGENT_WALLET_PRIVATE_KEY`) refuses to load unless
 `AGENT_OS_MODE=testnet` is set. There is no mainnet path implemented in this
 codebase at all.
+
+## Deploying
+
+See `DEPLOYMENT.md` for the full runbook — apps/web to Vercel, apps/api to
+Railway, with the exact monorepo settings each platform needs (they're
+opposite of each other: Vercel wants a per-app root directory, Railway's
+shared-monorepo pattern wants the root directory left at repo root).
 
 ## Hackathon submission notes
 

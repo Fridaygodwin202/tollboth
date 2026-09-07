@@ -2,7 +2,12 @@
 
 import { useEffect, useState } from "react";
 import { Button } from "@tollbooth/ui";
-import type { DecisionLogEntry, SpendLimitConfig, PurchaseResult } from "@tollbooth/types";
+import type {
+  DecisionLogEntry,
+  SpendLimitConfig,
+  PurchaseResult,
+  AgentOsCheckResult
+} from "@tollbooth/types";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 const DEFAULT_REASON = "Checking a premium market signal mid-analysis.";
@@ -19,6 +24,8 @@ export default function DashboardPage() {
   const [busy, setBusy] = useState(false);
   const [lastResult, setLastResult] = useState<PurchaseResult | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [agentOsResult, setAgentOsResult] = useState<AgentOsCheckResult | null>(null);
+  const [agentOsBusy, setAgentOsBusy] = useState(false);
 
   async function refresh() {
     setLoadError(null);
@@ -75,6 +82,28 @@ export default function DashboardPage() {
     }
   }
 
+  async function checkAgentOs() {
+    setAgentOsBusy(true);
+    setAgentOsResult(null);
+    try {
+      const res = await fetch(`${API_URL}/agent-os/check`);
+      const result: AgentOsCheckResult = await res.json();
+      setAgentOsResult(result);
+      if (result.shouldBuy) {
+        setReason(result.reason);
+      }
+    } catch (err) {
+      setAgentOsResult({
+        source: "binance-public-rest",
+        shouldBuy: false,
+        reason: err instanceof Error ? err.message : String(err),
+        detail: null
+      });
+    } finally {
+      setAgentOsBusy(false);
+    }
+  }
+
   const pct = spendLimit
     ? Math.min(100, (spendLimit.sessionSpentUsd / spendLimit.config.maxPerSessionUsd) * 100)
     : 0;
@@ -113,6 +142,24 @@ export default function DashboardPage() {
           </p>
         </section>
       )}
+
+      <section>
+        <h2>Check with Binance Agent OS</h2>
+        <p>
+          Asks Binance&apos;s real Agent OS MCP server for live market data
+          first (falling back to Binance&apos;s public API if that
+          connection isn&apos;t available) to decide whether paying for the
+          premium signal is actually worth it right now.
+        </p>
+        <Button variant="quiet" onClick={checkAgentOs} disabled={agentOsBusy}>
+          {agentOsBusy ? "Checking…" : "Check market conditions"}
+        </Button>
+        {agentOsResult && (
+          <p className="mono-note">
+            Source: {agentOsResult.source} — {agentOsResult.reason}
+          </p>
+        )}
+      </section>
 
       <section>
         <h2>Request passage</h2>

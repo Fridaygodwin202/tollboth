@@ -1,13 +1,247 @@
-* { box-sizing: border-box; }
+@import url("https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap");
+
+:root {
+  --asphalt: #14171a;
+  --asphalt-raised: #1d2125;
+  --paper: #f3f0e8;
+  --paper-shadow: #e4e0d4;
+  --ink: #1c1a16;
+  --ink-muted: #5c584e;
+  --toll-amber: #f2a93b;
+  --toll-amber-dim: #7a5a22;
+  --highway-green: #2b6e58;
+  --violation-red: #c1443c;
+
+  --font-display: "Big Shoulders Display", sans-serif;
+  --font-body: "IBM Plex Sans", system-ui, sans-serif;
+  --font-ledger: "IBM Plex Mono", monospace;
+}
+
+* {
+  box-sizing: border-box;
+}
+
 body {
   margin: 0;
-  font-family: system-ui, -apple-system, sans-serif;
-  background: #fff;
-  color: #111;
+  font-family: var(--font-body);
+  background: var(--asphalt);
+  color: var(--paper);
 }
+
+a {
+  color: inherit;
+}
+
+h1,
+h2 {
+  font-family: var(--font-display);
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  margin: 0 0 0.5rem;
+}
+
+h1 {
+  font-size: 2.75rem;
+  line-height: 0.95;
+}
+
+h2 {
+  font-size: 1.35rem;
+  color: var(--paper);
+}
+
 main {
   max-width: 640px;
   margin: 0 auto;
-  padding: 3rem 1.5rem;
+  padding: 2.5rem 1.5rem 4rem;
 }
-a { color: inherit; }
+
+p {
+  line-height: 1.5;
+  color: var(--paper);
+}
+
+/* --- site header: the gate you pass through to reach the app --- */
+.site-header {
+  border-bottom: 4px solid var(--toll-amber);
+  background: var(--asphalt-raised);
+}
+
+.site-header-inner {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 1rem 1.5rem;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.site-header-mark {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 1.4rem;
+  color: var(--paper);
+}
+
+.site-nav {
+  display: flex;
+  gap: 1.25rem;
+}
+
+.site-header-right {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+}
+
+.site-nav a {
+  font-size: 0.9rem;
+  color: var(--paper);
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+}
+
+.site-nav a:hover,
+.site-nav a:focus-visible {
+  border-bottom-color: var(--toll-amber);
+}
+
+/* --- the gate arm: doubles as the spend meter, the one bold element --- */
+.gate-arm-track {
+  background: var(--asphalt-raised);
+  border: 1px solid var(--toll-amber-dim);
+  height: 28px;
+  position: relative;
+  overflow: hidden;
+}
+
+.gate-arm-fill {
+  height: 100%;
+  background: repeating-linear-gradient(
+    135deg,
+    var(--toll-amber),
+    var(--toll-amber) 10px,
+    #d99628 10px,
+    #d99628 20px
+  );
+  transition: width 400ms ease-out;
+}
+
+.gate-arm-fill.gate-arm-full {
+  background: repeating-linear-gradient(
+    135deg,
+    var(--violation-red),
+    var(--violation-red) 10px,
+    #9c332c 10px,
+    #9c332c 20px
+  );
+}
+
+.gate-arm-label {
+  font-family: var(--font-ledger);
+  font-size: 0.85rem;
+  color: var(--paper);
+}
+
+/* --- ticket stubs: one per decision-log entry --- */
+.ticket-stub {
+  background: var(--paper);
+  color: var(--ink);
+  padding: 1rem 1.1rem;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.15rem 1rem;
+  border-bottom: 2px dashed var(--paper-shadow);
+}
+
+.ticket-stub:last-child {
+  border-bottom: none;
+}
+
+.ticket-reason {
+  font-size: 0.95rem;
+}
+
+.ticket-meta {
+  font-family: var(--font-ledger);
+  font-size: 0.8rem;
+  color: var(--ink-muted);
+  grid-column: 1 / -1;
+}
+
+.ticket-amount {
+  font-family: var(--font-ledger);
+  font-weight: 500;
+  text-align: right;
+}
+
+.ticket-status {
+  font-size: 0.75rem;
+  font-weight: 500;
+  padding: 0.1rem 0.5rem;
+  display: inline-block;
+  width: fit-content;
+}
+
+.ticket-status.approved {
+  background: var(--highway-green);
+  color: var(--paper);
+}
+
+.ticket-status.denied {
+  background: var(--violation-red);
+  color: var(--paper);
+}
+
+.mono-note {
+  font-family: var(--font-ledger);
+  font-size: 0.85rem;
+  color: var(--paper);
+  opacity: 0.85;
+}
+
+.ledger {
+  background: var(--paper);
+}
+
+/* --- the mock-seller notice: printed on the ticket, not a browser alert --- */
+.mock-notice {
+  font-family: var(--font-ledger);
+  font-size: 0.8rem;
+  background: var(--asphalt-raised);
+  color: var(--toll-amber);
+  border-left: 4px solid var(--toll-amber);
+  padding: 0.75rem 1rem;
+  margin: 1.5rem 0;
+}
+
+/* --- forms --- */
+label {
+  display: block;
+  font-size: 0.9rem;
+  margin-bottom: 1rem;
+  color: var(--paper);
+}
+
+input[type="email"],
+input[type="password"],
+input[type="text"] {
+  display: block;
+  width: 100%;
+  margin-top: 0.35rem;
+  padding: 0.55rem 0.65rem;
+  background: var(--paper);
+  color: var(--ink);
+  border: 1px solid var(--paper-shadow);
+  font-family: var(--font-body);
+  font-size: 1rem;
+}
+
+button {
+  font-family: var(--font-body);
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}

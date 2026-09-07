@@ -81,3 +81,14 @@ export interface PurchaseResult {
   responseBody?: unknown;
   error?: string;
 }
+
+/* ---------------------------------------------------------------------- *
+ * Real Binance Agent OS touchpoint (introduced Session 6).
+ * ---------------------------------------------------------------------- */
+
+export interface AgentOsCheckResult {
+  source: "agent-os-mcp" | "binance-public-rest";
+  shouldBuy: boolean;
+  reason: string;
+  detail: unknown;
+}

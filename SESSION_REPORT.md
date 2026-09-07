@@ -298,3 +298,71 @@
 - Still has not been run in a real browser — the font `@import` and CSS will only be visually confirmed once `pnpm dev` actually runs, per the still-open first-run checklist from Session 4.
 
 **Style history (for any future UI-touching session to read before making changes):** Toll-plaza / turnpike ledger visual system. Palette: asphalt/paper/amber/highway-green/violation-red as defined above. Fonts: Big Shoulders Display (headlines), IBM Plex Sans (body), IBM Plex Mono (ledger amounts and signatures only — not general labels). Signature element: gate-arm meter. Ledger entries are ticket stubs with dashed perforation. Sentence-case headers throughout; no all-caps, no middle-dot joins, no arrow-suffixed buttons. Any future design work should stay inside this system rather than introducing a second visual language.
+
+---
+
+## Session 6: Real Agent OS MCP Touchpoint
+**Date:** 2026-09-06
+**Why:** Investigating primary-source Binance developer docs (not secondary press) revealed the buyer-only x402 flow never calls anything Binance-hosted — inherent to the buyer role in x402 generally, but a real risk for a Track A submission literally named after "Agent OS." Fixed by wiring a genuine Agent OS touchpoint into the purchase decision itself.
+
+**Files added/changed:**
+- `apps/api/src/lib/binance-agent-os.ts` (new) — best-effort connection to the real `https://agent.binance.com/mcp/agentic` MCP server: connects, calls `tools/list` to discover real tool names (no hardcoded/guessed tool name), heuristically matches a market-data tool, calls it. Explicitly documented as uncertain: Binance's own docs only describe interactive-client OAuth setup (Claude Code/Desktop/ChatGPT), not headless server access, so this may simply not work as written — and the `@modelcontextprotocol/sdk` import paths/method signatures are written from general knowledge, unverified against an installed copy.
+- `apps/api/src/lib/public-market-data.ts` (new) — guaranteed-working fallback using Binance's plain public Spot REST API (`api.binance.com/api/v3/ticker/24hr`), zero auth, well-documented and stable. Not literally "Agent OS," but genuinely live Binance data either way.
+- `apps/api/src/lib/purchase-trigger.ts` (new) — tries the MCP path first, falls back to public REST on any failure, and computes a real shouldBuy/reason from live 24h price-change data. Throws rather than fabricating a number if both sources fail.
+- `apps/api/src/routes/agent-os.ts` (new) — `GET /agent-os/check`, registered in `index.ts`.
+- `packages/types/src/index.ts` — added `AgentOsCheckResult`.
+- `apps/web/app/dashboard/page.tsx` — new "Check with Binance Agent OS" section; a real market check now feeds the purchase reason field when it recommends buying.
+- `apps/api/package.json` — added `@modelcontextprotocol/sdk`.
+- `apps/api/.env.example` — added `AGENT_OS_MCP_URL`, `AGENT_OS_CHECK_SYMBOL`, `AGENT_OS_VOLATILITY_THRESHOLD_PCT`.
+
+**Real bug caught during this session:** the new dashboard section's result line was styled with `.ticket-meta` (dark muted text designed for use on the light paper ticket background) but placed directly on the dark page background — would have rendered as near-invisible text. Caught before shipping; added a proper `.mono-note` class for ledger-styled text on the dark background instead.
+
+**What remains genuinely uncertain (stated plainly, not glossed over):**
+- Whether `binance-agent-os.ts`'s MCP connection works at all outside Binance's documented interactive-client OAuth flow is unverified — first real test happens when this actually runs.
+- Exact MCP tool names/schema for the market-data scope are unknown; the code discovers and returns them at runtime rather than guessing, but the heuristic match (`/ticker|market|price|quote/i`) could pick the wrong tool or none. If it connects but doesn't find a match, the full discovered tool list comes back in the error so this can be corrected with real information — that's a concrete follow-up item, not a dead end.
+- If the MCP path fails, the demo still works end-to-end via the public REST fallback — this was a deliberate design choice specifically so this session's uncertainty couldn't break the otherwise-working purchase flow.
+
+---
+
+## Session 7: Deployment
+**Date:** 2026-09-06
+**Goal:** Get both apps to a real, live URL — Vercel for apps/web, Railway for apps/api.
+
+**Files added/changed:**
+- `DEPLOYMENT.md` (new) — full runbook, confirmed against current Vercel and Railway documentation (not assumed from training knowledge, since platform-specific config is exactly the kind of thing that drifts): Vercel needs the app's own directory set as Root Directory with "include files outside the root directory" checked; Railway's shared-monorepo guidance is the opposite — leave the root directory unset and override build/start commands per service instead, since setting a per-app root directory on Railway would miss the workspace packages entirely.
+- `README.md` — added a Deployment section pointing to the runbook.
+- `DEMO_SCRIPT.md` — updated to reference the live deployed URL as the preferred recording target, and added a new beat showcasing the Agent OS check (total runtime estimate bumped to ~90–105s accordingly).
+- `apps/web/vercel.json` — unchanged from Session 1; confirmed this session that its `cd ../.. && pnpm turbo run build --filter=@tollbooth/web` pattern matches current documented Vercel monorepo practice.
+
+**What this session could not do:** actually deploy anything. No network access in this build environment, and account creation/OAuth on Vercel/Railway/GitHub are things only you can do. `DEPLOYMENT.md` is written as precisely as I can make it from current documentation, but — consistent with everything else in this build — it is unverified until you actually run it. If a step doesn't match what you see in either platform's UI, tell me and I'll correct the runbook.
+
+**Known deployment risk flagged in the runbook:** free/trial tiers on Railway can sleep or expire; worth confirming the service is warm before recording the demo, not cold-starting on the first click.
+
+---
+
+## Session 8: UX Simplification (Remove Sign-In, Add Optional Wallet Connect)
+**Date:** 2026-09-06
+**Why:** User feedback — signing in was never actually required to use the app (the dashboard was never gated behind auth, confirmed by grep before touching anything), but the UI presented it as if it were, and it should instead offer a wallet-connect option that's clearly optional.
+
+**Files removed:**
+- `apps/web/app/(auth)/sign-in/page.tsx`, `sign-up/page.tsx` — deleted entirely, not just unlinked.
+- `apps/web/lib/supabase/client.ts` — deleted; was only used by the now-removed auth pages.
+- `@supabase/supabase-js` — removed from `apps/web/package.json`; was only used by the deleted files, would otherwise have become a declared-but-unused dependency.
+- `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` — removed from `apps/web/.env.example`. apps/web no longer talks to Supabase at all; the decision log is still written server-side by apps/api, unaffected by this change.
+
+**Files added:**
+- `apps/web/app/wallet-connect.tsx` (new) — optional wallet connect using the raw EIP-1193 browser provider (`window.ethereum`) directly, no new dependency added. Checks for an already-authorized connection on mount (via `eth_accounts`, which doesn't prompt), and offers a real connect flow (`eth_requestAccounts`) on click. Explicitly documented in its own comment: this is a visitor's own browser wallet, unrelated to the agent's own payment-signing wallet (a separate server-side key in apps/api) — nothing in the app is gated behind it.
+
+**Files changed:**
+- `apps/web/app/layout.tsx` — nav simplified to just "Ledger"; sign-in/sign-up links replaced with `<WalletConnect />`.
+- `apps/web/app/globals.css` — added `.site-header-right` to group nav and wallet-connect.
+- `apps/web/app/page.tsx` — hero copy now states plainly "No sign-up needed — the ledger below is open to anyone," CTA renamed "See the ledger."
+- `apps/web/tsconfig.json` — removed the deprecated `baseUrl` (flagged by a real TS deprecation warning pointing at TS 7.0). `paths` resolve relative to the tsconfig file itself without it, per TS 4.1+ behavior — this matches current Next.js's own generated tsconfig convention, not just a warning-silencing workaround.
+- `README.md`, `DEPLOYMENT.md` — updated to match: apps/web setup no longer mentions Supabase env vars.
+
+**Verification performed:**
+- Grepped `apps/web/app/dashboard/page.tsx` for any auth/session/supabase reference before making any change, to confirm the premise (dashboard was never actually gated) rather than assuming it from memory.
+- Full repo grep after the change for dangling references to the deleted sign-in/sign-up routes or the deleted Supabase client import — none found (one match on the word "sign-up" was the new hero copy, not a broken link, and was checked explicitly rather than assumed clean).
+- Re-checked for the `React.*` namespace bug pattern across the changed files — none introduced.
+
+**What this session deliberately did not do:** did not add a wallet library (wagmi, RainbowKit, etc.) — the raw `window.ethereum` interface covers "optional connect, show address" without adding dependency weight or install-time risk this late before the deadline. If richer wallet UX (network switching, multiple wallet support) is wanted later, that's a real scope decision to make deliberately, not something to fold in silently now.
