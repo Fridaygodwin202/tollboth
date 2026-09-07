@@ -13,3 +13,5 @@ Session 6 — Real Agent OS MCP Touchpoint (added after Session 5) — the buyer
 Session 7 — Deployment (added after Session 6) — full deployment runbook and config for apps/web (Vercel) and apps/api (Railway), so the submission can point at a live URL instead of localhost.
 
 Session 8 — UX simplification (added after Session 7, user-directed) — removed the mandatory-feeling Supabase sign-in/sign-up flow (it never actually gated anything) and replaced it with an optional wallet-connect affordance; made the no-signup-required dashboard access explicit in the UI copy; fixed a TypeScript tsconfig deprecation warning.
+
+Session 9 — Fix real build errors (added after Session 8) — first real `tsc` compile (via a Render deploy attempt) surfaced genuine TypeScript errors: a wrong `moduleResolution` mode for apps/api (was inheriting Next.js's "Bundler" setting instead of the "NodeNext" mode correct for directly-Node-executed code) plus three independent unknown/implicit-any typing bugs. See SESSION_REPORT.md for full root-cause analysis.

@@ -366,3 +366,25 @@
 - Re-checked for the `React.*` namespace bug pattern across the changed files — none introduced.
 
 **What this session deliberately did not do:** did not add a wallet library (wagmi, RainbowKit, etc.) — the raw `window.ethereum` interface covers "optional connect, show address" without adding dependency weight or install-time risk this late before the deadline. If richer wallet UX (network switching, multiple wallet support) is wanted later, that's a real scope decision to make deliberately, not something to fold in silently now.
+
+---
+
+## Session 9: Fix Real Build Errors (First Real Compile, via Render)
+**Date:** 2026-09-07
+**Why:** First real `tsc` build attempt (on Render) surfaced actual TypeScript errors — exactly the category of thing flagged as unverified in every prior session's report, now genuinely tested for the first time.
+
+**Root cause identified for the `Cannot find module 'viem'` / `'@modelcontextprotocol/sdk'...` errors:**
+`apps/api/tsconfig.json` was inheriting `"moduleResolution": "Bundler"` from the shared `packages/config/tsconfig.base.json` — correct for `apps/web` (Next.js is a bundler-based toolchain) but wrong for `apps/api`, which is executed directly by Node (`tsx` in dev, compiled output run via plain `node` in production). Packages with complex `package.json` "exports" maps (`viem`'s `./chains`/`./accounts` subpaths, `@modelcontextprotocol/sdk`'s `./client/index.js`/`./client/streamableHttp.js` subpaths) failed to resolve their type declarations under "Bundler" mode; simpler packages (`fastify`, `@supabase/supabase-js`, `dotenv`) happened to resolve fine either way, which is why the error list was partial rather than total.
+
+**Fix:** `apps/api/tsconfig.json` now explicitly sets `"module": "NodeNext"` and `"moduleResolution": "NodeNext"`, overriding the shared base for this app only (`apps/web` is untouched, correctly keeps "Bundler"). This isn't a guess-based workaround — NodeNext is TypeScript's own recommended mode for code actually executed by Node.js outside a bundler, so this is a genuine correctness fix, not just a warning-silencer. Verified beforehand that every relative import in `apps/api` already used explicit `.js` extensions (a NodeNext requirement) — confirmed via grep before making the change, so the fix shouldn't introduce new extension-related errors.
+
+**Three independent, real bugs also fixed in the same pass (not just symptoms of the module-resolution issue):**
+1. `apps/api/src/lib/binance-agent-os.ts` — `tools.map((t) => ...)` / `tools.find((t) => ...)` had implicit-`any` callback parameters once flowing through a dynamically-imported, type-unresolved module. Added a local `DiscoveredTool` interface and explicit casts so this type-checks regardless of whether the SDK's own types resolve — defensive, not dependent on the primary fix alone.
+2. `apps/api/src/lib/public-market-data.ts` — Node's ambient `fetch`/`Response.json()` types return `Promise<unknown>` (stricter than the browser DOM lib's `any`), so accessing `body.lastPrice`/`body.priceChangePercent` on an unknown value was a real type error, not just noise. Fixed with an explicit shape assertion plus a runtime presence check — consistent with how `parsePaymentRequired` already validated its own untrusted response shape.
+3. `apps/api/src/lib/x402-client.ts` — same category of bug in `parsePaymentRequired`: `response.json()` resolved to type `{}` in this environment's `@types/node`, so `body.accepts` didn't type-check even though the existing runtime `Array.isArray(body.accepts)` check was already correct logic. Fixed with an explicit `{ accepts?: unknown }` assertion ahead of the existing (unchanged) validation.
+
+**Reviewed adjacent code for latent errors that could surface once viem's real types are checked** (since previously-`any`-typed imports can mask type errors elsewhere) — read through `wallet.ts`, `mock-facilitator.ts`, and `x402-client.ts`'s `signAuthorization` in full against viem's actual documented API shape; found no additional issues, but flagging that this review is by inspection, not by an actual compile — the real test is the next deploy attempt.
+
+**Deployment docs updated:** `DEPLOYMENT.md` now documents Render (the platform actually in use) as the primary path, based on Render's own published monorepo guidance, with Railway kept as a documented alternative. Also added a direct troubleshooting note in the runbook connecting this exact error signature to its fix, so a future re-read doesn't require re-diagnosing from scratch.
+
+**What's still unverified:** whether this actually fixes the Render build — I can't run `tsc` myself in this environment either, so this is, like everything else, correct by inspection and reasoning, not confirmed by execution. Next real signal is the next deploy attempt.

@@ -24,7 +24,14 @@ export async function checkMarketViaPublicRest(symbol: string): Promise<PublicMa
     throw new Error(`Binance public REST API returned ${res.status} for ${symbol}.`);
   }
 
-  const body = await res.json();
+  const body = (await res.json()) as { lastPrice?: unknown; priceChangePercent?: unknown };
+
+  if (body.lastPrice === undefined || body.priceChangePercent === undefined) {
+    throw new Error(
+      `Binance public REST API response for ${symbol} didn't include lastPrice/priceChangePercent - ` +
+        "response shape may have changed."
+    );
+  }
 
   return {
     source: "binance-public-rest",

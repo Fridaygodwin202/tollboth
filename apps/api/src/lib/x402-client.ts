@@ -12,7 +12,7 @@ import type {
 export async function parsePaymentRequired(
   response: Response
 ): Promise<X402PaymentRequiredResponse> {
-  const body = await response.json();
+  const body = (await response.json()) as { accepts?: unknown };
   if (!body || !Array.isArray(body.accepts) || body.accepts.length === 0) {
     throw new Error(
       "Response had status 402 but body did not match the expected x402 " +

@@ -26,6 +26,13 @@
 
 const AGENT_OS_MCP_URL = process.env.AGENT_OS_MCP_URL ?? "https://agent.binance.com/mcp/agentic";
 
+/** Minimal shape we actually use from the SDK's Tool type - kept local so
+ * this still type-checks even if the SDK's own types aren't resolved. */
+interface DiscoveredTool {
+  name: string;
+  description?: string;
+}
+
 export interface AgentOsMarketCheckResult {
   source: "agent-os-mcp";
   toolsDiscovered: string[];
@@ -50,10 +57,10 @@ export async function checkMarketViaAgentOsMcp(
 
     await client.connect(transport);
 
-    const { tools } = await client.listTools();
-    const toolsDiscovered = tools.map((t) => t.name);
+    const { tools } = (await client.listTools()) as { tools: DiscoveredTool[] };
+    const toolsDiscovered = tools.map((t: DiscoveredTool) => t.name);
 
-    const marketTool = tools.find((t) =>
+    const marketTool = tools.find((t: DiscoveredTool) =>
       /ticker|market|price|quote/i.test(`${t.name} ${t.description ?? ""}`)
     );
 
